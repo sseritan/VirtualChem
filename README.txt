@@ -1,5 +1,21 @@
 Hey!
 
+== If You Want to Try it ==
+There are a few things you need in order for this project
+to work on your system:
+1) A Kinect with a power supply and usb connector
+	(power and connector come with the AC adapter)
+2) libusb-1.0
+	I used homebrew to install my version (1.0.9)
+3) OpenGL and GLUT, came already on my Mac :P
+4) You will need to fiddle with the Makefile to
+	link things to where YOU have them.
+
+Also, I am only really writing code to be compatible with
+my system, although it should really work on any Mac with Lion.
+
+== Background ==
+
 This project was started by Stefan Seritan in Spring 2012.
 The goal was to use a Kinect to manipulate a 3D
 visualization of molecules using hand gestures, as a
