@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include "depthStream.h"
 
 //Include the OpenGL graphics libraries
@@ -38,9 +37,6 @@ int fAngle = 0;
 //Middle is the callback layer, getting ready to be drawn
 //Front is within OpenGL, being drawn
 uint8_t *depthMid, *depthFront;
-//This is currently used to color things according to their depth
-//TODO: Use a different way to display depth, and cut off at a few feet
-uint16_t depthGamma[2048];
 
 //Other required globals
 int window;
@@ -53,16 +49,8 @@ int main(int argc, char **argv) {
 	//Initialize all the arrays to store the data
 	//Currently they are store 3 pixels because the depth data is turned into RGB
 	//This may change
-	depthMid = (uint8_t*)malloc(640*480*3);
+	depthMid = (uint8_t*)malloc(640*480);
 	depthFront = (uint8_t*)malloc(640*480*3);
-	
-	//Initialize the different levels for depth (I assume this is what it does, it is in the original code)
-	//I will most likely not use this in the final product
-	for (int i=0;i<2048; i++) {
-		float v = i/2048.0;
-		v = powf(v,3)*6;
-		depthGamma[i]=v*6*256;
-	}
 	
 	//Set the globals
 	globArgc = argc; globArgv = argv;
@@ -237,13 +225,21 @@ void DrawGlScene() {
 		pthread_cond_wait(&glFrameCond, &glBufferMutex);
 	}
 	
-	//Initialize a temporary pointer, and swap the front and mid layers
-	//Mid will be overwritten with the new data later
+	//Convert 1's or 0's in depthMid to white or black RGB in depthFront
 	uint8_t * tmp;
 	if (gotDepth) {
-		tmp = depthFront;
-		depthFront = depthMid;
-		depthMid = tmp;
+		for (int i = 0; i < 640*480; i++) {
+			if (depthMid[i]) {
+				depthFront[3*i+0] = 255;
+				depthFront[3*i+1] = 255;
+				depthFront[3*i+2] = 255;
+			} else {
+				depthFront[3*i+0] = 0;
+				depthFront[3*i+1] = 0;
+				depthFront[3*i+2] = 0;			
+			}
+		}
+		
 		gotDepth = 0;
 	}
 	
@@ -272,46 +268,12 @@ void depthCallback(freenect_device * dev, void * tmpDepth, uint32_t timestamp) {
 	//Cast depth to int
 	uint16_t * depth = (uint16_t *)tmpDepth;
 	
-	//Displays the colored depth
-	for(int i = 0; i < 640*480; i++) {
-		int pval = depthGamma[depth[i]];
-		int lb = pval & 0xff;
-		switch (pval>>8) {
-			case 0:
-				depthMid[3*i+0] = 255;
-				depthMid[3*i+1] = 255-lb;
-				depthMid[3*i+2] = 255-lb;
-				break;
-			case 1:
-				depthMid[3*i+0] = 255;
-				depthMid[3*i+1] = lb;
-				depthMid[3*i+2] = 0;
-				break;
-			case 2:
-				depthMid[3*i+0] = 255-lb;
-				depthMid[3*i+1] = 255;
-				depthMid[3*i+2] = 0;
-				break;
-			case 3:
-				depthMid[3*i+0] = 0;
-				depthMid[3*i+1] = 255;
-				depthMid[3*i+2] = lb;
-				break;
-			case 4:
-				depthMid[3*i+0] = 0;
-				depthMid[3*i+1] = 255-lb;
-				depthMid[3*i+2] = 255;
-				break;
-			case 5:
-				depthMid[3*i+0] = 0;
-				depthMid[3*i+1] = 0;
-				depthMid[3*i+2] = 255-lb;
-				break;
-			default:
-				depthMid[3*i+0] = 0;
-				depthMid[3*i+1] = 0;
-				depthMid[3*i+2] = 0;
-				break;
+	//Cutoff at a depth of 600. Anything present is a hand
+	for (int i = 0; i < 640*480; i++) {
+		if (depth[i] < 600) {
+			depthMid[i] = 1;
+		} else {
+			depthMid[i] = 0;
 		}
 	}
 	
