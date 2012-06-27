@@ -7,6 +7,11 @@
 
 #include "libfreenect.h"
 
+typedef struct{
+	int x;
+	int y;
+} Point;
+
 //Function Prototypes
 //Thread functions
 void * fThreadFunc(void * arg);
@@ -20,5 +25,8 @@ void DrawGlScene();
 
 //Freenect callbacks
 void depthCallback(freenect_device * dev, void * depth, uint32_t  timestamp);
+
+//Hand tracking functions
+void getEdgePixels();
 
 #endif

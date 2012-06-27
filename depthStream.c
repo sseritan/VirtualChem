@@ -38,6 +38,9 @@ int fAngle = 0;
 //Front is within OpenGL, being drawn
 uint8_t *depthMid, *depthFront;
 
+//Hand detection/tracking globals
+uint8_t *edges;
+
 //Other required globals
 int window;
 int globArgc; char ** globArgv;
@@ -47,9 +50,9 @@ int gotDepth = 0;
 //Main function
 int main(int argc, char **argv) {
 	//Initialize all the arrays to store the data
-	//Currently they are store 3 pixels because the depth data is turned into RGB
-	//This may change
+	//depthMid and edges only have 1s and 0s, depthFront is RGB
 	depthMid = (uint8_t*)malloc(640*480);
+	edges = (uint8_t*)malloc(640*480);
 	depthFront = (uint8_t*)malloc(640*480*3);
 	
 	//Set the globals
@@ -216,6 +219,7 @@ void keyPressed(unsigned char key, int x, int y) {
 	freenect_set_tilt_degs(fDev, fAngle);
 }
 
+//DrawGlScene, grabs the mid layer and pushes it to the front, displaying it
 void DrawGlScene() {
 	//Lock the thread
 	pthread_mutex_lock(&glBufferMutex);
@@ -225,10 +229,13 @@ void DrawGlScene() {
 		pthread_cond_wait(&glFrameCond, &glBufferMutex);
 	}
 	
-	//Convert 1's or 0's in depthMid to white or black RGB in depthFront
-	uint8_t * tmp;
+	//Take the new depth data and display it
 	if (gotDepth) {
+		//Update the edges array
+		getEdgePixels();
+		
 		for (int i = 0; i < 640*480; i++) {
+			//Grab the data from mid, and convert to black and white
 			if (depthMid[i]) {
 				depthFront[3*i+0] = 255;
 				depthFront[3*i+1] = 255;
@@ -238,8 +245,17 @@ void DrawGlScene() {
 				depthFront[3*i+1] = 0;
 				depthFront[3*i+2] = 0;			
 			}
+			
+			//Grab the edges and color them red
+			//Since the edges will always be in the hand, R is already 255
+			//G and B must be set to 0;
+			if (edges[i]) {
+				depthFront[3*i+1] = 0;
+				depthFront[3*i+2] = 0;
+			}
 		}
 		
+		//Signal readiness for next batch of depth data
 		gotDepth = 0;
 	}
 	
@@ -261,6 +277,7 @@ void DrawGlScene() {
 	glutSwapBuffers();	
 }
 
+//depthCallback, grabs the depth data from freenect, and stores it in the mid layer
 void depthCallback(freenect_device * dev, void * tmpDepth, uint32_t timestamp) {
 	//Lock the thread
 	pthread_mutex_lock(&glBufferMutex);
@@ -283,4 +300,28 @@ void depthCallback(freenect_device * dev, void * tmpDepth, uint32_t timestamp) {
 	
 	//Unlock the thread
 	pthread_mutex_unlock(&glBufferMutex);
+}
+
+//getEdges, will get all the pixels (or almost all, maybe not a flat bottom) that are on the edge of a hand
+void getEdgePixels() {
+	//Initialize a counter to keep track of previous "pixel"
+	int prev = 0;
+	
+	//Run through all through the depth data and grab anything on the border
+	//This will not grab a flat edge along the bottom or top, but its good enough for now
+	for (int i = 0; i<640*480; i++) {
+		if (prev != depthMid[i] && prev == 0) {
+			//prev is black, current is white, current is an edge
+			edges[i] = 1;
+		} else if (prev!= depthMid[i] && prev == 1) {
+			//prev is white, current is black, prev is an edge
+			edges[i-1] = 1;
+		} else {
+			edges[i] = 0;
+		}
+		
+		//Increment prev to current, and counter
+		prev = depthMid[i];
+	}
+	
 }
