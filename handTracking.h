@@ -51,9 +51,10 @@ void DrawGLScene();
 //Image processing functions
 Node* getHandRegions(uint8_t* depth);
 Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag);
-Node* analyzeRegions(Node* head);
+void analyzeRegions(Node* head);
 int testVertical(uint8_t* depth, Point start, Point end);
 int testHorizontal(uint8_t* depth, Point start, Point end);
+int testRegionSize(Node* node);
 
 //Utility functions
 Point createPoint(int X, int Y);

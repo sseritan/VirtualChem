@@ -77,11 +77,48 @@ segment the image into smaller and smaller regions (but not if there is somethin
 Once the size of the regions is small enough (20 by 20 pixels), they are discarded.
 **/
 
-//Segment the image into regions, either containing white or smaller than 20 by 20
+//Get the hand regions
+Node* getHandRegions(uint8_t* depth) {
+	Point p1 = createPoint(0,0); Point p2 = createPoint(639, 479);
+	Region full = createRegion(p1, p2);
+	Node* fullRegion = createNode(full);
+	
+	//Segment the image
+	Node* head = segmentRegions(fullRegion, depth, PREV_H, 0);
+	
+	//Throw out small segments
+	analyzeRegions(head);
+	
+	//Count how many regions we have
+	Node* current = head;
+	int handCount = 0;
+	if (current != NULL) {
+		handCount++;
+	}
+	while (current->next != NULL) {
+		handCount++;
+		current = current->next;
+	}
+	
+	if (!handCount) {
+		printf("No hands detected.\n");
+	} else if (handCount == 1) {
+		printf("One hand detected.\n");
+	} else if (handCount == 2) {
+		printf("Two hands detected.\n");
+	} else {
+		printf("More than two hands detected.\n");
+	}
+	
+	return head;
+}
+
+//Segment the image into regions, either containing white or smaller than 10 by 10
 Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag) {
 	Node* n1, * n2;
 	Point ul = fullReg->reg.ul;
 	Point br = fullReg->reg.br;
+	Region reg1, reg2;
 	int foundCut = 0;
 	
 	//Try to cut the opposite way from the previous
@@ -97,8 +134,8 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 			
 			if (!testVertical(depth, start, end)) {
 				foundCut = 1;
-				Region reg1 = createRegion(ul, end);
-				Region reg2 = createRegion(start, br);
+				reg1 = createRegion(ul, end);
+				reg2 = createRegion(start, br);
 				
 				n1 = createNode(reg1); n2 = createNode(reg2);
 			}
@@ -116,8 +153,8 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 		
 			if (!testVertical(depth, start, end)) {
 				foundCut = 1;
-				Region reg1 = createRegion(ul, end);
-				Region reg2 = createRegion(start, br);
+				reg1 = createRegion(ul, end);
+				reg2 = createRegion(start, br);
 				
 				n1 = createNode(reg1); n2 = createNode(reg2);
 			}
@@ -146,8 +183,8 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 			
 			if(!testHorizontal(depth, start, end)) {
 				foundCut = 1;
-				Region reg1 = createRegion(ul, end);
-				Region reg2 = createRegion(start, br);
+				reg1 = createRegion(ul, end);
+				reg2 = createRegion(start, br);
 				
 				n1 = createNode(reg1); n2 = createNode(reg2);
 			}
@@ -164,8 +201,8 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 			
 			if (!testHorizontal(depth, start, end)) {
 				foundCut = 1;
-				Region reg1 = createRegion(ul, end);
-				Region reg2 = createRegion(start, br);
+				reg1 = createRegion(ul, end);
+				reg2 = createRegion(start, br);
 				
 				n1 = createNode(reg1); n2 = createNode(reg2);
 			}
@@ -185,8 +222,13 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 	}
 	
 	//MAGIC... make the recursive calls
-	n1 = segmentRegions(n1, depth, newStatus, 0);
-	n2 = segmentRegions(n2, depth, newStatus, 0);
+	//Unless these segments are smaller than 10 pixels in any dimension
+	if ((reg1.br.x - reg1.ul.x) > 10 && (reg1.ul.y - reg1.br.y) > 10) {
+		n1 = segmentRegions(n1, depth, newStatus, 0);
+	}
+	if ((reg2.br.x - reg2.ul.x) > 10 && (reg2.ul.y - reg2.br.y) > 10) {
+		n2 = segmentRegions(n2, depth, newStatus, 0);
+	}
 	
 	//Find the tail to the first node, to link it all together
 	Node* tail;
@@ -198,6 +240,43 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 	tail->next = n2;
 	
 	return n1;
+}
+
+//Throw out all of the small nodes
+void analyzeRegions(Node* head) {
+	Node* current = head->next;
+	Node* prev = head;
+	
+	while (current->next != NULL) {
+		if (testRegionSize(current)) {
+			freeNode(prev, current);
+			current = prev->next;
+		} else {
+			prev = current;
+			current = current->next;
+		}
+	}
+	
+	//Base cases
+	//Head
+	if (testRegionSize(head)) {
+		Node* newHead = head->next;
+		freeNode(NULL, head);
+		head = newHead;
+	}
+	
+	//Tail
+	Node* tail = prev->next;
+	if (testRegionSize(tail)) {
+		freeNode(prev, tail);
+	}
+	
+	return;
+}
+
+//Test that the node is smaller than 15 in at least one dimension
+int testRegionSize(Node* node) {
+	return (node->reg.br.x - node->reg.ul.x <= 15 || node->reg.ul.y - node->reg.br.y <= 15);
 }
 
 //Go between the two points vertically and test for white
