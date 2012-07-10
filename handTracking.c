@@ -70,6 +70,67 @@ int main(int argc, char** argv) {
 }
 
 /**
+Image Processing Functions
+
+The core of this will be the recursive getHandRegions function, which will recursively
+segment the image into smaller and smaller regions (but not if there is something there).
+Once the size of the regions is small enough (20 by 20 pixels), they are discarded.
+**/
+
+//Main recursive function to segment the image
+Node* getHandRegions(Node* prev, uint8_t* depth, segStatus status) {
+	Node* head;
+	
+	//Try to segment the image the opposite way of before
+	switch (status) {
+		case PREV_H:
+			
+			break;
+		case PREV_V:
+			break;
+	}
+	
+	return head;
+}
+
+/**
+General Utility Functions
+
+Basic functions that I need, but aren't really pure image processing
+**/
+
+//Simple constructor for the Node struct
+Node* createNode(Point pUl, Point pBr) {
+	Node* node;
+	node->reg->ul = pUl; node->reg->br = pBr;
+	node->next = NULL;
+	return node;
+}
+
+//Simple function to convert from a pixel to a Point value
+Point getCartesian(int pixel) {
+	Point p;
+	
+	//Y coord is easy, the division of ints will always round down
+	p.y = pixel/640;
+	
+	//X coord is easy if on the first line, so we translate the pixel vertically (no change in X)
+	while (pixel > 640) {
+		pixel - 640;
+	}
+	
+	p.x = pixel;
+	
+	return p;
+}
+
+//Simple function to convert from a Point to a pixel value
+int getPixel(Point p) {
+	//First get to the right row, then move over the right amount
+	return (p.y*640) + p.x;
+}
+
+/**
 Kinect Functions
 
 This whole section sets up a separate thread and completely handles all of the Kinect parts of the code.
