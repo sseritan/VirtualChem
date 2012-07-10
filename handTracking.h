@@ -49,9 +49,11 @@ void keyPressed(unsigned char key, int x, int y);
 void DrawGLScene();
 
 //Image processing functions
-Node* getHandRegions(Node* prev, uint8_t* depth, segStatus status);
-int testVertical(uint8_t* depth, Point p);
-int testHorizontal(uint8_t* depth, Point p);
+Node* getHandRegions(uint8_t* depth);
+Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status);
+Node* analyzeRegions(Node* head);
+int testVertical(uint8_t* depth, Point start, Point end);
+int testHorizontal(uint8_t* depth, Point start, Point end);
 
 //Utility functions
 Node* createNode(Point pUl, Point pBr);

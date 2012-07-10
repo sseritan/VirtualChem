@@ -72,25 +72,15 @@ int main(int argc, char** argv) {
 /**
 Image Processing Functions
 
-The core of this will be the recursive getHandRegions function, which will recursively
+The core of this will be the recursive segmentRegions function, which will recursively
 segment the image into smaller and smaller regions (but not if there is something there).
 Once the size of the regions is small enough (20 by 20 pixels), they are discarded.
 **/
 
-//Main recursive function to segment the image
-Node* getHandRegions(Node* prev, uint8_t* depth, segStatus status) {
-	Node* head;
+int testVertical(uint8_t* depth, Point start, Point end) {
+	int pixel = getPixel(p);
 	
-	//Try to segment the image the opposite way of before
-	switch (status) {
-		case PREV_H:
-			
-			break;
-		case PREV_V:
-			break;
-	}
 	
-	return head;
 }
 
 /**
