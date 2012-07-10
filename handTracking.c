@@ -77,10 +77,167 @@ segment the image into smaller and smaller regions (but not if there is somethin
 Once the size of the regions is small enough (20 by 20 pixels), they are discarded.
 **/
 
+//Segment the image into regions, either containing white or smaller than 20 by 20
+Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag) {
+	Node* n1, * n2;
+	Point ul = fullReg->reg.ul;
+	Point br = fullReg->reg.br;
+	int foundCut = 0;
+	
+	//Try to cut the opposite way from the previous
+	if (PREV_H) {
+		//Find average
+		int avgX = ((ul.x + br.x)/2);
+		int x = avgX;
+		
+		//Try going right first
+		while (x <= br.x && !foundCut) {
+			Point start = createPoint(x, ul.y);
+			Point end = createPoint(x, br.y);
+			
+			if (!testVertical(depth, start, end)) {
+				foundCut = 1;
+				Region reg1 = createRegion(ul, end);
+				Region reg2 = createRegion(start, br);
+				
+				n1 = createNode(reg1); n2 = createNode(reg2);
+			}
+			
+			//Increment over 5 pixels
+			x += 5;
+		}
+		
+		//Cut was not found to the right, go left
+		//Reset to the left of average
+		x = avgX - 5;
+		while (x >= ul.x && !foundCut) {
+			Point start = createPoint(x, ul.y);
+			Point end = createPoint(x, br.y);
+		
+			if (!testVertical(depth, start, end)) {
+				foundCut = 1;
+				Region reg1 = createRegion(ul, end);
+				Region reg2 = createRegion(start, br);
+				
+				n1 = createNode(reg1); n2 = createNode(reg2);
+			}
+			
+			//Increment over 5 pixels
+			x -= 5;
+		}
+		
+		//Cut was not found on either side
+		if (attemptFlag) {
+			//I already tried horizontal cuts, no way to segment
+			return fullReg;
+		} else {
+			//Try horizontal split
+			segmentRegions(fullReg, depth, PREV_H, 1);
+		}
+	} else if (PREV_V) {
+		//Find average
+		int avgY = ((ul.y + br.y)/2);
+		int y = avgY;
+		
+		//Try to go up first
+		while (y <= ul.y && !foundCut) {
+			Point start = createPoint(ul.x, y);
+			Point end = createPoint(br.x, y);
+			
+			if(!testHorizontal(depth, start, end)) {
+				foundCut = 1;
+				Region reg1 = createRegion(ul, end);
+				Region reg2 = createRegion(start, br);
+				
+				n1 = createNode(reg1); n2 = createNode(reg2);
+			}
+			
+			//Increment up 5 pixels
+			y += 5;
+		}
+		
+		y = avgY - 5;
+		//Try to go down if cut not found up
+		while (y >= br.y && !foundCut) {
+			Point start = createPoint(ul.x, y);
+			Point end = createPoint(br.x, y);
+			
+			if (!testHorizontal(depth, start, end)) {
+				foundCut = 1;
+				Region reg1 = createRegion(ul, end);
+				Region reg2 = createRegion(start, br);
+				
+				n1 = createNode(reg1); n2 = createNode(reg2);
+			}
+			
+			//Increment
+			y -= 5;
+		}
+	} else {
+		printf("Bad status code to segmentRegions.\n");
+	}
+	
+	segStatus newStatus;
+	if (status == PREV_H) {
+		newStatus = PREV_V;
+	} else {
+		newStatus = PREV_H;
+	}
+	
+	//MAGIC... make the recursive calls
+	n1 = segmentRegions(n1, depth, newStatus, 0);
+	n2 = segmentRegions(n2, depth, newStatus, 0);
+	
+	//Find the tail to the first node, to link it all together
+	Node* tail;
+	while (tail->next != NULL) {
+		tail = tail->next;
+	}
+	
+	//Link the two lists
+	tail->next = n2;
+	
+	return n1;
+}
+
+//Go between the two points vertically and test for white
+//Returns number of times it hits white (if 0, can segment there)
 int testVertical(uint8_t* depth, Point start, Point end) {
-	int pixel = getPixel(p);
+	//Get the pixel values for the points
+	int s = getPixel(start); int e = getPixel(end);
 	
+	int whiteCount = 0;
 	
+	//Test each pixel in the line
+	while (s <= e) {
+		if (depth[s]) {
+			whiteCount++;
+		}
+		
+		//Increment down a full row
+		//If performance not high enough, I can skip more rows here
+		s += 640;
+	}
+	
+	return whiteCount;
+}
+
+//Go between the two points horizontally and test for white
+//Returns number of times it hits white (if 0, can segment there)
+int testHorizontal(uint8_t* depth, Point start, Point end) {
+	int s = getPixel(start); int e = getPixel(end);
+	
+	int whiteCount = 0;
+	
+	while (s <= e) {
+		if (depth[s]) {
+			whiteCount++;
+		}
+		
+		s++;
+	}
+	
+	return whiteCount;
 }
 
 /**
@@ -90,11 +247,39 @@ Basic functions that I need, but aren't really pure image processing
 **/
 
 //Simple constructor for the Node struct
-Node* createNode(Point pUl, Point pBr) {
-	Node* node;
-	node->reg->ul = pUl; node->reg->br = pBr;
+Node* createNode(Region r) {
+	Node* node = (Node*)malloc(sizeof(Node));
+	node->reg = r;
 	node->next = NULL;
 	return node;
+}
+
+//Destructor for the Node struct, also keeping the the list together, and freeing memory
+void freeNode(Node* prev, Node* current) {
+	if (prev == NULL) {
+		//This is the head of the list
+		free(current);
+		return;
+	}
+	
+	//Make the previous point to the next, then free
+	prev->next = current->next;
+	free(current);
+}
+
+//Simple constructor for the Point struct
+Point createPoint(int X, int Y) {
+	Point p;
+	p.x = X;
+	p.y = Y;
+	return p;
+}
+
+Region createRegion(Point p1, Point p2) {
+	Region reg;
+	reg.ul = p1;
+	reg.br = p2;
+	return reg;
 }
 
 //Simple function to convert from a pixel to a Point value
@@ -106,7 +291,7 @@ Point getCartesian(int pixel) {
 	
 	//X coord is easy if on the first line, so we translate the pixel vertically (no change in X)
 	while (pixel > 640) {
-		pixel - 640;
+		pixel -= 640;
 	}
 	
 	p.x = pixel;

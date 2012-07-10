@@ -29,7 +29,7 @@ typedef struct {
 } Region;
 
 typedef struct Node {
-	Region* reg;
+	Region reg;
 	struct Node* next;
 } Node;
 
@@ -50,13 +50,16 @@ void DrawGLScene();
 
 //Image processing functions
 Node* getHandRegions(uint8_t* depth);
-Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status);
+Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag);
 Node* analyzeRegions(Node* head);
 int testVertical(uint8_t* depth, Point start, Point end);
 int testHorizontal(uint8_t* depth, Point start, Point end);
 
 //Utility functions
-Node* createNode(Point pUl, Point pBr);
+Point createPoint(int X, int Y);
+Region createRegion(Point p1, Point p2);
+Node* createNode(Region r);
+void freeNode(Node* prev, Node* current);
 Point getCartesian(int pixel);
 int getPixel(Point p);
 
