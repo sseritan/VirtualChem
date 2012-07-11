@@ -105,11 +105,11 @@ Node* getHandRegions(uint8_t* depth) {
 	Node* current = head;
 	int handCount = 0;
 	if (current != NULL) {
-		handCount++;
-	}
-	while (current->next != NULL) {
-		handCount++;
-		current = current->next;
+		handCount = 1;
+		while (current->next != NULL) {
+			handCount++;
+			current = current->next;
+		}
 	}
 	
 	if (!handCount) {
@@ -134,7 +134,7 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 	int foundCut = 0;
 	
 	//Try to cut the opposite way from the previous
-	if (PREV_H) {
+	if (status == PREV_H) {
 		//Find average
 		int avgX = ((ul.x + br.x)/2);
 		int x = avgX;
@@ -176,20 +176,22 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 		}
 		
 		//Cut was not found on either side
-		if (attemptFlag) {
+		if (attemptFlag && !foundCut) {
 			//I already tried horizontal cuts, no way to segment
+			printf("No way to cut region. Returning full region.\n");
 			return fullReg;
-		} else {
+		} else if (!foundCut) {
 			//Try horizontal split
+			printf("Vertical cut not found.\n");
 			segmentRegions(fullReg, depth, PREV_H, 1);
 		}
-	} else if (PREV_V) {
+	} else if (status == PREV_V) {
 		//Find average
 		int avgY = ((ul.y + br.y)/2);
 		int y = avgY;
 		
 		//Try to go up first
-		while (y <= ul.y && !foundCut) {
+		while (y >= ul.y && !foundCut) {
 			Point start = createPoint(ul.x, y);
 			Point end = createPoint(br.x, y);
 			
@@ -201,13 +203,13 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 				n1 = createNode(reg1); n2 = createNode(reg2);
 			}
 			
-			//Increment up 5 pixels
-			y += 5;
+			//Increment up 5 pixels (remember coord system!!!)
+			y -= 5;
 		}
 		
-		y = avgY - 5;
+		y = avgY + 5;
 		//Try to go down if cut not found up
-		while (y >= br.y && !foundCut) {
+		while (y <= br.y && !foundCut) {
 			Point start = createPoint(ul.x, y);
 			Point end = createPoint(br.x, y);
 			
@@ -220,10 +222,17 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 			}
 			
 			//Increment
-			y -= 5;
+			y += 5;
 		}
-	} else {
-		printf("Bad status code to segmentRegions.\n");
+		
+		//Cut was not found either way
+		if (attemptFlag && !foundCut) {
+			printf("No way to cut region. Returning full region.\n");
+			return fullReg;
+		} else if (!foundCut) {
+			printf("No horizontal cut possible.\n");
+			segmentRegions(fullReg, depth, PREV_V, 1);
+		}
 	}
 	
 	segStatus newStatus;
@@ -235,15 +244,15 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 	
 	//MAGIC... make the recursive calls
 	//Unless these segments are smaller than 10 pixels in any dimension
-	if ((reg1.br.x - reg1.ul.x) > 10 && (reg1.ul.y - reg1.br.y) > 10) {
+	if ((reg1.br.x - reg1.ul.x) > 10 && (reg1.br.y - reg1.ul.y) > 10) {
 		n1 = segmentRegions(n1, depth, newStatus, 0);
 	}
-	if ((reg2.br.x - reg2.ul.x) > 10 && (reg2.ul.y - reg2.br.y) > 10) {
+	if ((reg2.br.x - reg2.ul.x) > 10 && (reg2.br.y - reg2.ul.y) > 10) {
 		n2 = segmentRegions(n2, depth, newStatus, 0);
 	}
 	
 	//Find the tail to the first node, to link it all together
-	Node* tail;
+	Node* tail = n1;
 	while (tail->next != NULL) {
 		tail = tail->next;
 	}
@@ -256,11 +265,16 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 
 //Throw out all of the small nodes
 void analyzeRegions(Node* head) {
+	if (head == NULL || head->next == NULL) {
+		return;
+	}
+	
 	Node* current = head->next;
 	Node* prev = head;
 	
 	while (current->next != NULL) {
 		if (testRegionSize(current)) {
+			printf("Freeing node.\n");
 			freeNode(prev, current);
 			current = prev->next;
 		} else {
@@ -601,6 +615,7 @@ void DrawGLScene() {
 	glBindTexture(GL_TEXTURE_2D, depthTex);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, 640, 480, 0, GL_RGB, GL_UNSIGNED_BYTE, depthRGB);
 	
+	/**
 	//Display the texture
 	glBegin(GL_TRIANGLE_FAN);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -611,7 +626,7 @@ void DrawGLScene() {
 	glEnd();
 	
 	glutSwapBuffers();
-	
+	**/
 	//Memory Management
 	free(depthRGB);
 }
