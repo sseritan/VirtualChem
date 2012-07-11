@@ -43,6 +43,16 @@ int main(int argc, char** argv) {
 	//Initialize the depth data array
 	depthData = (uint8_t*)malloc(640*480);
 	
+	//Init to an empty array
+	for (int i = 0; i < 640*480; i++) {
+		depthData[i] = 0;
+	}
+	
+	printf("Initialized test array.\n");
+	
+	/**
+	Commented out for testing purposes
+	
 	//Initialize Kinect thread and device
 	if (pthread_create(&kinectThread, NULL, kinectThreadFunc, NULL)) {
 		printf("Setting up thread for Kinect failed. Shutting down.\n");
@@ -54,6 +64,7 @@ int main(int argc, char** argv) {
 		//Otherwise we get in a weird state where the kinect thread dies
 		//but OpenGL keeps going
 	}
+	**/
 	
 	if (!kill) {
 		//Initialize OpenGL on the main thread
@@ -62,6 +73,7 @@ int main(int argc, char** argv) {
 		//Start the OpenGL loop
 		glutMainLoop();
 	}
+	
 	//Memory Management and Safe Shutdown
 	printf("Shutting down.\n");
 	free(depthData);
@@ -546,7 +558,10 @@ void keyPressed(unsigned char key, int x, int y) {
 void DrawGLScene() {
 	//Initialize RGB array
 	uint8_t* depthRGB = (uint8_t*)malloc(640*480*3);
-
+	
+	/**
+	Testing
+	
 	//Lock the thread
 	pthread_mutex_lock(&bufferSwapMutex);
 	
@@ -554,10 +569,14 @@ void DrawGLScene() {
 	while (!gotDepth) {
 		pthread_cond_wait(&bufferCond, &bufferSwapMutex);
 	}
+	**/
 	
 	//Display the data in black and white
-	if (gotDepth) {
-		for (int i =0; i < 640*480; i++) {
+	//if (gotDepth) {
+	
+	Node* head = getHandRegions(depthData);
+	
+		for (int i = 0; i < 640*480; i++) {
 			if (depthData[i]) {
 				//Something is there, display as white
 				depthRGB[3*i+0] = 255;
@@ -573,10 +592,10 @@ void DrawGLScene() {
 		
 		//Signal depth data was used
 		gotDepth = 0;
-	}
+	//}
 	
 	//Unlock the thread
-	pthread_mutex_unlock(&bufferSwapMutex);
+	//pthread_mutex_unlock(&bufferSwapMutex);
 	
 	//Bind the byte array to the texture
 	glBindTexture(GL_TEXTURE_2D, depthTex);
