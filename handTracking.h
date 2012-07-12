@@ -20,6 +20,4 @@ void ResizeGLScene(int w, int h);
 void keyPressed(unsigned char key, int x, int y);
 void DrawGLScene();
 
-
-
 #endif

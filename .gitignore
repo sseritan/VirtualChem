@@ -4,3 +4,7 @@ handTracking
 handTracking.o
 
 imageProcessing.o
+
+testIP.o
+
+testIP

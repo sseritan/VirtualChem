@@ -156,6 +156,7 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 //Throw out all of the small nodes
 void analyzeRegions(Node* head) {
 	if (head == NULL || head->next == NULL) {
+		printf("Error occurred in segmentRegions, no Nodes passed to analyzeRegions.\n");
 		return;
 	}
 	
@@ -285,7 +286,7 @@ Point getCartesian(int pixel) {
 	p.y = pixel/640;
 	
 	//X coord is easy if on the first line, so we translate the pixel vertically (no change in X)
-	while (pixel > 640) {
+	while (pixel >= 640) {
 		pixel -= 640;
 	}
 	
