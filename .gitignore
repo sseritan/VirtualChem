@@ -2,3 +2,5 @@
 handTracking
 
 handTracking.o
+
+imageProcessing.o

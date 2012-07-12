@@ -1,12 +1,12 @@
 //Stefan Seritan, June 27, 2012
 //handTracking.c, takes depth data from the Kinect and turns it into events
-//I will attempt to make this synchronous, as opposed to the callbacks used in depthStream
+//Will generate the number and location of current hands, as well as an OpenGL texture
 
 //Basic includes
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "handTracking.h"
+#include "imageProcessing.h"
 
 //Include libfreenect library
 #include "libfreenect.h"
@@ -15,7 +15,7 @@
 #include <pthread.h>
 
 //For testing and development purposes, the easiest way to test this is visually
-//Include OpenGL and GLUT (must run on main thread, not thread safe)_
+//Include OpenGL and GLUT (must run on main thread, not thread safe)
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
@@ -82,11 +82,9 @@ int main(int argc, char** argv) {
 }
 
 /**
-Image Processing Functions
+Hand Tracking Functions
 
-The core of this will be the recursive segmentRegions function, which will recursively
-segment the image into smaller and smaller regions (but not if there is something there).
-Once the size of the regions is small enough (20 by 20 pixels), they are discarded.
+The actually important part of this file. Grabs the hands and their positions.
 **/
 
 //Get the hand regions
@@ -101,16 +99,7 @@ Node* getHandRegions(uint8_t* depth) {
 	//Throw out small segments
 	analyzeRegions(head);
 	
-	//Count how many regions we have
-	Node* current = head;
 	int handCount = 0;
-	if (current != NULL) {
-		handCount = 1;
-		while (current->next != NULL) {
-			handCount++;
-			current = current->next;
-		}
-	}
 	
 	if (!handCount) {
 		printf("No hands detected.\n");
@@ -123,291 +112,6 @@ Node* getHandRegions(uint8_t* depth) {
 	}
 	
 	return head;
-}
-
-//Segment the image into regions, either containing white or smaller than 10 by 10
-Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag) {
-	Node* n1, * n2;
-	Point ul = fullReg->reg.ul;
-	Point br = fullReg->reg.br;
-	Region reg1, reg2;
-	int foundCut = 0;
-	
-	//Try to cut the opposite way from the previous
-	if (status == PREV_H) {
-		//Find average
-		int avgX = ((ul.x + br.x)/2);
-		int x = avgX;
-		
-		//Try going right first
-		while (x <= br.x && !foundCut) {
-			Point start = createPoint(x, ul.y);
-			Point end = createPoint(x, br.y);
-			
-			if (!testVertical(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
-			}
-			
-			//Increment over 5 pixels
-			x += 5;
-		}
-		
-		//Cut was not found to the right, go left
-		//Reset to the left of average
-		x = avgX - 5;
-		while (x >= ul.x && !foundCut) {
-			Point start = createPoint(x, ul.y);
-			Point end = createPoint(x, br.y);
-		
-			if (!testVertical(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
-			}
-			
-			//Increment over 5 pixels
-			x -= 5;
-		}
-		
-		//Cut was not found on either side
-		if (attemptFlag && !foundCut) {
-			//I already tried horizontal cuts, no way to segment
-			printf("No way to cut region. Returning full region.\n");
-			return fullReg;
-		} else if (!foundCut) {
-			//Try horizontal split
-			printf("Vertical cut not found.\n");
-			segmentRegions(fullReg, depth, PREV_H, 1);
-		}
-	} else if (status == PREV_V) {
-		//Find average
-		int avgY = ((ul.y + br.y)/2);
-		int y = avgY;
-		
-		//Try to go up first
-		while (y >= ul.y && !foundCut) {
-			Point start = createPoint(ul.x, y);
-			Point end = createPoint(br.x, y);
-			
-			if(!testHorizontal(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
-			}
-			
-			//Increment up 5 pixels (remember coord system!!!)
-			y -= 5;
-		}
-		
-		y = avgY + 5;
-		//Try to go down if cut not found up
-		while (y <= br.y && !foundCut) {
-			Point start = createPoint(ul.x, y);
-			Point end = createPoint(br.x, y);
-			
-			if (!testHorizontal(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
-			}
-			
-			//Increment
-			y += 5;
-		}
-		
-		//Cut was not found either way
-		if (attemptFlag && !foundCut) {
-			printf("No way to cut region. Returning full region.\n");
-			return fullReg;
-		} else if (!foundCut) {
-			printf("No horizontal cut possible.\n");
-			segmentRegions(fullReg, depth, PREV_V, 1);
-		}
-	}
-	
-	segStatus newStatus;
-	if (status == PREV_H) {
-		newStatus = PREV_V;
-	} else {
-		newStatus = PREV_H;
-	}
-	
-	//MAGIC... make the recursive calls
-	//Unless these segments are smaller than 10 pixels in any dimension
-	if ((reg1.br.x - reg1.ul.x) > 10 && (reg1.br.y - reg1.ul.y) > 10) {
-		n1 = segmentRegions(n1, depth, newStatus, 0);
-	}
-	if ((reg2.br.x - reg2.ul.x) > 10 && (reg2.br.y - reg2.ul.y) > 10) {
-		n2 = segmentRegions(n2, depth, newStatus, 0);
-	}
-	
-	//Find the tail to the first node, to link it all together
-	Node* tail = n1;
-	while (tail->next != NULL) {
-		tail = tail->next;
-	}
-	
-	//Link the two lists
-	tail->next = n2;
-	
-	return n1;
-}
-
-//Throw out all of the small nodes
-void analyzeRegions(Node* head) {
-	if (head == NULL || head->next == NULL) {
-		return;
-	}
-	
-	Node* current = head->next;
-	Node* prev = head;
-	
-	while (current->next != NULL) {
-		if (testRegionSize(current)) {
-			printf("Freeing node.\n");
-			freeNode(prev, current);
-			current = prev->next;
-		} else {
-			prev = current;
-			current = current->next;
-		}
-	}
-	
-	//Base cases
-	//Head
-	if (testRegionSize(head)) {
-		Node* newHead = head->next;
-		freeNode(NULL, head);
-		head = newHead;
-	}
-	
-	//Tail
-	Node* tail = prev->next;
-	if (testRegionSize(tail)) {
-		freeNode(prev, tail);
-	}
-	
-	return;
-}
-
-//Test that the node is smaller than 15 in at least one dimension
-int testRegionSize(Node* node) {
-	return (node->reg.br.x - node->reg.ul.x <= 15 || node->reg.ul.y - node->reg.br.y <= 15);
-}
-
-//Go between the two points vertically and test for white
-//Returns number of times it hits white (if 0, can segment there)
-int testVertical(uint8_t* depth, Point start, Point end) {
-	//Get the pixel values for the points
-	int s = getPixel(start); int e = getPixel(end);
-	
-	int whiteCount = 0;
-	
-	//Test each pixel in the line
-	while (s <= e) {
-		if (depth[s]) {
-			whiteCount++;
-		}
-		
-		//Increment down a full row
-		//If performance not high enough, I can skip more rows here
-		s += 640;
-	}
-	
-	return whiteCount;
-}
-
-//Go between the two points horizontally and test for white
-//Returns number of times it hits white (if 0, can segment there)
-int testHorizontal(uint8_t* depth, Point start, Point end) {
-	int s = getPixel(start); int e = getPixel(end);
-	
-	int whiteCount = 0;
-	
-	while (s <= e) {
-		if (depth[s]) {
-			whiteCount++;
-		}
-		
-		s++;
-	}
-	
-	return whiteCount;
-}
-
-/**
-General Utility Functions
-
-Basic functions that I need, but aren't really pure image processing
-**/
-
-//Simple constructor for the Node struct
-Node* createNode(Region r) {
-	Node* node = (Node*)malloc(sizeof(Node));
-	node->reg = r;
-	node->next = NULL;
-	return node;
-}
-
-//Destructor for the Node struct, also keeping the the list together, and freeing memory
-void freeNode(Node* prev, Node* current) {
-	if (prev == NULL) {
-		//This is the head of the list
-		free(current);
-		return;
-	}
-	
-	//Make the previous point to the next, then free
-	prev->next = current->next;
-	free(current);
-}
-
-//Simple constructor for the Point struct
-Point createPoint(int X, int Y) {
-	Point p;
-	p.x = X;
-	p.y = Y;
-	return p;
-}
-
-Region createRegion(Point p1, Point p2) {
-	Region reg;
-	reg.ul = p1;
-	reg.br = p2;
-	return reg;
-}
-
-//Simple function to convert from a pixel to a Point value
-Point getCartesian(int pixel) {
-	Point p;
-	
-	//Y coord is easy, the division of ints will always round down
-	p.y = pixel/640;
-	
-	//X coord is easy if on the first line, so we translate the pixel vertically (no change in X)
-	while (pixel > 640) {
-		pixel -= 640;
-	}
-	
-	p.x = pixel;
-	
-	return p;
-}
-
-//Simple function to convert from a Point to a pixel value
-int getPixel(Point p) {
-	//First get to the right row, then move over the right amount
-	return (p.y*640) + p.x;
 }
 
 /**
@@ -588,7 +292,7 @@ void DrawGLScene() {
 	//Display the data in black and white
 	//if (gotDepth) {
 	
-	Node* head = getHandRegions(depthData);
+		Node* head = getHandRegions(depthData);
 	
 		for (int i = 0; i < 640*480; i++) {
 			if (depthData[i]) {
@@ -615,7 +319,7 @@ void DrawGLScene() {
 	glBindTexture(GL_TEXTURE_2D, depthTex);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, 640, 480, 0, GL_RGB, GL_UNSIGNED_BYTE, depthRGB);
 	
-	/**
+	
 	//Display the texture
 	glBegin(GL_TRIANGLE_FAN);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -626,7 +330,7 @@ void DrawGLScene() {
 	glEnd();
 	
 	glutSwapBuffers();
-	**/
+	
 	//Memory Management
 	free(depthRGB);
 }

@@ -1,10 +1,11 @@
 OPENGL_LIBS=-framework OpenGL -framework GLUT
 FREENECT_LIBS=-L /Users/Stefan/Documents/Projects/VirtualChem/lib -l freenect -l usb-1.0
+HTOBJECTS=handTracking.o imageProcessing.o
 LDFLAGS=$(OPENGL_LIBS) $(FREENECT_LIBS)
 CFLAGS=-g -I/Users/Stefan/Documents/Projects/VirtualChem/include/libfreenect
 
-handTracking: handTracking.o
-	gcc $(LDFLAGS) -o $@ $<
+handTracking: $(HTOBJECTS)
+	gcc $(LDFLAGS) $(HTOBJECTS) -o $@ 
 
 clean:
-	rm -rf handTracking.o handTracking
+	rm -rf *.o handTracking
