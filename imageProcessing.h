@@ -13,7 +13,7 @@ Function Prototypes
 
 //Image processing functions
 Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag);
-void analyzeRegions(Node* head);
+Node* filterRegions(Node* head);
 int testVertical(uint8_t* depth, Point start, Point end);
 int testHorizontal(uint8_t* depth, Point start, Point end);
 int testRegionSize(Node* node);
@@ -23,6 +23,7 @@ Point createPoint(int X, int Y);
 Region createRegion(Point p1, Point p2);
 Node* createNode(Region r);
 void freeNode(Node* prev, Node* current);
+Node* freeHeadNode(Node* head);
 Point getCartesian(int pixel);
 int getPixel(Point p);
 

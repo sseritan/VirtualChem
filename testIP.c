@@ -77,10 +77,10 @@ int testConversions() {
 //Helper function to testConversions()
 int comparePixelPoint(Point expected, int pixel) {
 	if (expected.x != getCartesian(pixel).x || expected.y != getCartesian(pixel).y) {
-		printf("Test failed.\n");
+		//printf("Test failed.\n");
 		return 1;
 	} else {
-		printf("Test passed.\n");
+		//printf("Test passed.\n");
 		return 0;
 	}
 }
@@ -88,10 +88,10 @@ int comparePixelPoint(Point expected, int pixel) {
 //Helper function to testConversions()
 int comparePointPixel(int expected, Point point) {
 	if (expected != getPixel(point)) {
-		printf("Test failed.\n");
+		//printf("Test failed.\n");
 		return 1;
 	} else {
-		printf("Test passed.\n");
+		//printf("Test passed.\n");
 		return 0;
 	}
 }
@@ -107,17 +107,41 @@ int testLinkedListFuncs() {
 	Node* n1 = createNode(r1); Node* n2 = createNode(r2); Node* n3 = createNode(r3);
 	Node* e1 = createNode(r1); Node* e2 = createNode(r2); Node* e3 = createNode(r3);
 	
-	//First, try to remove the head of a list, with 2 and 3 nodes
-	Node* head = n1;
-	n2->next = n3; n1->next = n2;
-	e2->next = e3;
-	freeNode(NULL, head);
+	//First remove a node in the middle
+	n1->next = n2; n2->next = n3;
+	e1->next = e3;
+	freeNode(n1, n2);
 	
-	errorCount += compareLists(n2, e2);
-	//errorCount += compareLists(head, e2);
+	errorCount += compareLists(n1, e1);
+	
+	//Next try to remove the tail
+	//First in a list of 3, then 2
+	n2 = createNode(r2); n1->next = n2; n2->next = n3;
+	e1->next = e2;
+	freeNode(n2, n3);
+	
+	errorCount += compareLists(n1, e1);
+	
+	e1->next = NULL;
+	freeNode(n1, n2);
+	
+	errorCount += compareLists(n1, e1);
+	
+	//Now remove head, from lists of length 2 and 1
+	n2 = createNode(r2);Node* head = n1; n1->next = n2;
+	e2->next = NULL;
+	head = freeHeadNode(head);
+	
+	errorCount+= compareLists(head, e2);
+	
+	head = n2;
+	head = freeHeadNode(head);
+	
+	errorCount += compareLists(head, NULL);
+	
 	
 	if (!errorCount) {
-		printf("All linked list tests passed.\n");
+		printf("All linked list tests passed!\n");
 	} else {
 		printf("%i linked list tests failed.\n", errorCount);
 	}
@@ -132,12 +156,12 @@ int compareLists(Node* head1, Node* head2) {
 	c1 = head1; c2 = head2;
 	
 	if (c1 == NULL && c2 == NULL) {
-		printf("Test passed.\n");
+		//printf("Test passed.\n");
 		return 0;
 	}
 	
 	if (compareNodes(c1, c2)) {
-		printf("Test failed.\n");
+		//printf("Test failed.\n");
 		return 1;
 	}
 	
@@ -148,10 +172,12 @@ int compareLists(Node* head1, Node* head2) {
 
 //Helper function to compareLists()
 int compareNodes(Node* n1, Node* n2) {
-	//Compare every element. I will not pass weird cases (empty or 1);
+	if ((n1 == NULL && n2 != NULL) || (n1 != NULL && n2 == NULL)) {
+		return 1;
+	}
+
 	if (n1->reg.ul.x != n2->reg.ul.x || n1->reg.ul.y != n2->reg.ul.y
-			|| n1->reg.br.x != n2->reg.br.x || n1->reg.br.y != n2->reg.br.y
-			|| n1->next != n2->next) {
+			|| n1->reg.br.x != n2->reg.br.x || n1->reg.br.y != n2->reg.br.y) {
 		return 1;
 	} else {
 		return 0;

@@ -154,15 +154,25 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 }
 
 //Throw out all of the small nodes
-void analyzeRegions(Node* head) {
-	if (head == NULL || head->next == NULL) {
+Node* filterRegions(Node* head) {
+	//Case of 0
+	if (head == NULL) {
 		printf("Error occurred in segmentRegions, no Nodes passed to analyzeRegions.\n");
 		return;
 	}
 	
+	//Case of one
+	if (head->next == NULL) {
+		if (testRegionSize(head)) {
+			return NULL;
+		} else {
+			return head;
+		}
+	}
+	
+	//Test all Nodes between head and tail
 	Node* current = head->next;
 	Node* prev = head;
-	
 	while (current->next != NULL) {
 		if (testRegionSize(current)) {
 			freeNode(prev, current);
@@ -252,15 +262,15 @@ Node* createNode(Region r) {
 
 //Destructor for the Node struct, also keeping the the list together, and freeing memory
 void freeNode(Node* prev, Node* current) {
-	if (prev == NULL) {
-		//This is the head of the list
-		free(current);
-		return;
-	}
-	
 	//Make the previous point to the next, then free
 	prev->next = current->next;
 	free(current);
+}
+
+Node* freeHeadNode(Node* head) {
+	Node* newHead = head->next;
+	free(head);
+	return newHead;
 }
 
 //Simple constructor for the Point struct

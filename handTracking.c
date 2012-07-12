@@ -97,9 +97,14 @@ Node* getHandRegions(uint8_t* depth) {
 	Node* head = segmentRegions(fullRegion, depth, PREV_H, 0);
 	
 	//Throw out small segments
-	analyzeRegions(head);
+	head = filterRegions(head);
+	Node* current = head;
 	
 	int handCount = 0;
+	while (current != NULL) {
+		handCount++;
+		current = current->next;
+	}
 	
 	if (!handCount) {
 		printf("No hands detected.\n");
