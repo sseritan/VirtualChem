@@ -10,8 +10,11 @@
 Function Prototypes
 **/
 
-void testConversions();
+int testConversions();
 int comparePixelPoint(Point expected, int pixel);
 int comparePointPixel(int expected, Point point);
+int testLinkedListFuncs();
+int compareLists(Node* head1, Node* head2);
+int compareNodes(Node* n1, Node* n2);
 
 #endif
