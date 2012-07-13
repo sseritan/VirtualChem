@@ -9,7 +9,7 @@
 /**
 Function Prototypes
 **/
-
+int testIPFuncs();
 int testConversions();
 int comparePixelPoint(Point expected, int pixel);
 int comparePointPixel(int expected, Point point);

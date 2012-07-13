@@ -158,7 +158,7 @@ Node* filterRegions(Node* head) {
 	//Case of 0
 	if (head == NULL) {
 		printf("Error occurred in segmentRegions, no Nodes passed to analyzeRegions.\n");
-		return;
+		return NULL;
 	}
 	
 	//Case of one
@@ -184,25 +184,26 @@ Node* filterRegions(Node* head) {
 	}
 	
 	//Base cases
+	//Tail
+	if (testRegionSize(current)) {
+		freeNode(prev, current);
+	}
+	
 	//Head
 	if (testRegionSize(head)) {
-		Node* newHead = head->next;
-		freeNode(NULL, head);
-		head = newHead;
+		head = freeHeadNode(head);
 	}
 	
-	//Tail
-	Node* tail = prev->next;
-	if (testRegionSize(tail)) {
-		freeNode(prev, tail);
+	if (head == NULL) {
+		return head;
 	}
 	
-	return;
+	return head;
 }
 
-//Test that the node is smaller than 15 in at least one dimension
+//Test that the node is smaller than 10 in at least one dimension
 int testRegionSize(Node* node) {
-	return (node->reg.br.x - node->reg.ul.x <= 15 || node->reg.ul.y - node->reg.br.y <= 15);
+	return (node->reg.br.x - node->reg.ul.x <= 10 || node->reg.br.y - node->reg.ul.y <= 10);
 }
 
 //Go between the two points vertically and test for white

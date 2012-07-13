@@ -4,6 +4,7 @@
 //Basic includes
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "main.h"
 #include "testIP.h"
 #include "imageProcessing.h"
@@ -16,6 +17,9 @@ int main(int argc, char** argv) {
 	int totalErrors = 0;
 	totalErrors += testConversions();
 	totalErrors += testLinkedListFuncs();
+	totalErrors += testIPFuncs();
+	
+	printf("\n");
 	
 	//Notify of test success/failure
 	if (!totalErrors) {
@@ -32,6 +36,94 @@ int main(int argc, char** argv) {
 }
 
 /**
+Testing IP Functions
+
+Tests the segment and filter functions
+I'm fairly confident in the performance of the segment function
+**/
+
+int testIPFuncs() {
+	printf("\nTesting image processing functions.\n");
+	int errorCount = 0;
+	
+	printf("Testing region filtering.\n");
+	Point p1 = createPoint(0, 0); Point p2 = createPoint(9,9);
+	Point p3 = createPoint(12, 12); Point p4 = createPoint(13, 13);
+	Region small = createRegion(p1, p2); Region large1 = createRegion(p1, p3);
+	Region large2 = createRegion(p1, p4);
+	
+	Node* n1 = createNode(large1); Node* n2 = createNode(small); Node* n3 = createNode(small);
+	Node* n4 = createNode(large2); Node* n5 = createNode(small); Node* n6 = createNode(large1);
+	
+	Node* e1 = createNode(large1); Node* e2 = createNode(large2); Node* e3 = createNode(large1);
+	
+	//Initialize the two lists
+	n1->next = n2; n2->next = n3; n3->next = n4; n4->next = n5; n5->next = n6;
+	e1->next = e2; e2->next = e3;
+	
+	Node* result1 = filterRegions(n1);
+	
+	errorCount += compareLists(result1, e1);
+	
+	//Initialize a "harder" list
+	n2 = createNode(small); n3 = createNode(small); n5 = createNode(small);
+	n2->next = n3; n3->next = n1; n1->next = n4; n4->next = n6; n6->next = n5;
+	
+	Node* result2 = filterRegions(n2);
+	
+	errorCount += compareLists(result2, e1);
+	
+	printf("Testing segmentation and filtering.\n");
+	
+	//Empty test
+	uint8_t* depth1 = (uint8_t*)malloc(640*480);
+	for (int i = 0; i < 640*480; i++) {
+		depth1[i] = 0;
+	}
+	
+	Node* full1 = createNode(createRegion(createPoint(0, 0), createPoint(639, 479)));
+	Node* result3 = segmentRegions(full1, depth1, PREV_H, 0);
+	result3 = filterRegions(result3);
+	
+	errorCount += compareLists(result3, NULL);
+
+	//Test with one region to be hit
+	
+	uint8_t* depth2 = (uint8_t*)malloc(640*480);
+	for (int i = 0; i < 480; i++) {
+		for (int j = 0; j < 640; j++) {
+			if (i > 238 && i < 248 && j > 317 && j < 327) {
+				depth2[640*i + j] = 1;
+			} else {
+				depth2[640*i + j] = 0;
+			}
+		}
+	}
+	
+	Node* full2 = createNode(createRegion(createPoint(0, 0), createPoint(639, 479)));
+	Node* result4 = segmentRegions(full2, depth2, PREV_H, 0);
+	result4 = filterRegions(result4);
+	
+	if (result4 != NULL && result4->next == NULL) {
+		printf("Test passed.\n");
+	} else {
+		printf("Test failed.\n");
+		errorCount++;
+	}
+	
+	if (!errorCount) {
+		printf("All image processing tests passed!\n");
+	} else {
+		printf("%i tests failed.\n", errorCount);
+	}
+	
+	//Memory Management
+	free(n1); free(n4); free(n6); free(e1); free(e2); free(e3);
+	
+	return errorCount;
+}
+
+/**
 Testing Utility Functions
 
 Tests conversion and linked list functions
@@ -39,7 +131,7 @@ Tests conversion and linked list functions
 
 int testConversions() {
 	int errorCount = 0;
-	printf("Testing pixel to Point conversions.\n");
+	printf("\nTesting pixel to Point conversions.\n");
 	
 	//Initialize some test cases
 	int p1 = 0; int p2 = 640; int p3 = 640*480-1;
@@ -77,10 +169,10 @@ int testConversions() {
 //Helper function to testConversions()
 int comparePixelPoint(Point expected, int pixel) {
 	if (expected.x != getCartesian(pixel).x || expected.y != getCartesian(pixel).y) {
-		//printf("Test failed.\n");
+		printf("Test failed.\n");
 		return 1;
 	} else {
-		//printf("Test passed.\n");
+		printf("Test passed.\n");
 		return 0;
 	}
 }
@@ -88,16 +180,16 @@ int comparePixelPoint(Point expected, int pixel) {
 //Helper function to testConversions()
 int comparePointPixel(int expected, Point point) {
 	if (expected != getPixel(point)) {
-		//printf("Test failed.\n");
+		printf("Test failed.\n");
 		return 1;
 	} else {
-		//printf("Test passed.\n");
+		printf("Test passed.\n");
 		return 0;
 	}
 }
 
 int testLinkedListFuncs() {
-	printf("Testing the linked list functions.\n");
+	printf("\nTesting the linked list functions.\n");
 	int errorCount = 0;
 	
 	//Initialize some nodes
@@ -146,22 +238,25 @@ int testLinkedListFuncs() {
 		printf("%i linked list tests failed.\n", errorCount);
 	}
 	
+	//Memory Management
+	free(e1); free(e2); free(e3);
+	
 	return errorCount;
 }
 
-//Helper function to testLinkedListFuncs()
+//Helper function to testLinkedListFuncs() and testIPFuncs()
 int compareLists(Node* head1, Node* head2) {
 	int error = 0;
 	Node* c1, * c2;
 	c1 = head1; c2 = head2;
 	
 	if (c1 == NULL && c2 == NULL) {
-		//printf("Test passed.\n");
+		printf("Test passed.\n");
 		return 0;
 	}
 	
 	if (compareNodes(c1, c2)) {
-		//printf("Test failed.\n");
+		printf("Test failed.\n");
 		return 1;
 	}
 	
