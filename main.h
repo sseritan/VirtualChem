@@ -4,6 +4,8 @@
 #ifndef VIRCHEM_MAIN_H
 #define VIRCHEM_MAIN_H
 
+#include <stdint.h>
+
 /**
 Image Segmentation structs and enums
 -Region

@@ -1,6 +1,6 @@
 OPENGL_LIBS=-framework OpenGL -framework GLUT
 FREENECT_LIBS=-L /Users/Stefan/Documents/Projects/VirtualChem/lib -l freenect -l usb-1.0
-HTOBJECTS=handTracking.o imageProcessing.o
+HTOBJECTS=handTracking.o imageProcessing.o depthStream.o
 TIPOBJECTS=testIP.o imageProcessing.o
 LDFLAGS=$(OPENGL_LIBS) $(FREENECT_LIBS)
 CFLAGS=-g -Wall -I/Users/Stefan/Documents/Projects/VirtualChem/include/libfreenect

@@ -8,3 +8,5 @@ imageProcessing.o
 testIP.o
 
 testIP
+
+depthStream.o
