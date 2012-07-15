@@ -76,32 +76,27 @@ int testIPFuncs() {
 	printf("Testing segmentation and filtering.\n");
 	
 	//Empty test
-	uint8_t* depth1 = (uint8_t*)malloc(640*480);
+	uint8_t* depth = (uint8_t*)malloc(640*480);
 	for (int i = 0; i < 640*480; i++) {
-		depth1[i] = 0;
+		depth[i] = 0;
 	}
 	
-	Node* full1 = createNode(createRegion(createPoint(0, 0), createPoint(639, 479)));
-	Node* result3 = segmentRegions(full1, depth1, PREV_H, 0);
+	Node* full = createNode(createRegion(createPoint(0, 0), createPoint(639, 479)));
+	Node* result3 = segmentRegions(full, depth, PREV_H);
 	result3 = filterRegions(result3);
 	
 	errorCount += compareLists(result3, NULL);
 
 	//Test with one region to be hit
-	
-	uint8_t* depth2 = (uint8_t*)malloc(640*480);
 	for (int i = 0; i < 480; i++) {
 		for (int j = 0; j < 640; j++) {
-			if (i > 238 && i < 248 && j > 317 && j < 327) {
-				depth2[640*i + j] = 1;
-			} else {
-				depth2[640*i + j] = 0;
+			if (i >= 5  && i <= 15 && j >= 5 && j <= 15) {
+				depth[640*i + j] = 1;
 			}
 		}
 	}
 	
-	Node* full2 = createNode(createRegion(createPoint(0, 0), createPoint(639, 479)));
-	Node* result4 = segmentRegions(full2, depth2, PREV_H, 0);
+	Node* result4 = segmentRegions(full, depth, PREV_H);
 	result4 = filterRegions(result4);
 	
 	if (result4 != NULL && result4->next == NULL) {
@@ -109,6 +104,26 @@ int testIPFuncs() {
 	} else {
 		printf("Test failed.\n");
 		errorCount++;
+	}
+	
+	//Test with two regions, not perfectly horizontal
+	for (int i = 0; i < 480; i++) {
+		for (int j = 0; j < 640; j++) {
+			if (i >= 22 && i <= 32 && j >= 7 && j <= 17) {
+				depth[640*i + j] = 1;
+			}
+		}
+	}
+	
+	Node* result5 = segmentRegions(full, depth, PREV_H);
+	result5 = filterRegions(result5);
+	
+	if (result5 != NULL && result5->next != NULL
+			&& result5->next->next == NULL) {
+		printf("Test passed.\n");
+	} else {
+		errorCount++;
+		printf("Test failed.\n");
 	}
 	
 	if (!errorCount) {

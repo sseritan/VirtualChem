@@ -3,7 +3,7 @@ FREENECT_LIBS=-L /Users/Stefan/Documents/Projects/VirtualChem/lib -l freenect -l
 HTOBJECTS=handTracking.o imageProcessing.o
 TIPOBJECTS=testIP.o imageProcessing.o
 LDFLAGS=$(OPENGL_LIBS) $(FREENECT_LIBS)
-CFLAGS=-g -I/Users/Stefan/Documents/Projects/VirtualChem/include/libfreenect
+CFLAGS=-g -Wall -I/Users/Stefan/Documents/Projects/VirtualChem/include/libfreenect
 
 all: handTracking testIP
 

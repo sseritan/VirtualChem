@@ -16,112 +16,45 @@ Once the size of the regions is small enough (20 by 20 pixels), they are discard
 **/
 
 //Segment the image into regions, either containing white or smaller than 10 by 10
-Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag) {
+Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status) {
 	Node* n1, * n2;
 	Point ul = fullReg->reg.ul;
 	Point br = fullReg->reg.br;
-	Region reg1, reg2;
-	int foundCut = 0;
 	
 	//Try to cut the opposite way from the previous
 	if (status == PREV_H) {
-		//Find average
-		int avgX = ((ul.x + br.x)/2);
-		int x = avgX;
+		//Pass to cutting function
+		int cutX = findVerticalCut(depth, ul, br);
 		
-		//Try going right first
-		while (x <= br.x && !foundCut) {
-			Point start = createPoint(x, ul.y);
-			Point end = createPoint(x, br.y);
+		if (cutX >= 0) {
+			//Cut was found
+			n1 = createNode(createRegion(ul, createPoint(cutX, br.y)));
+			n2 = createNode(createRegion(createPoint(cutX, ul.y), br));
+		} else {
+			int cutY = findHorizontalCut(depth, ul, br);
 			
-			if (!testVertical(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
+			if (cutY >= 0) {
+				n1 = createNode(createRegion(ul, createPoint(br.x, cutY)));
+				n2 = createNode(createRegion(createPoint(ul.x, cutY), br));
+			} else {
+				return fullReg;
 			}
-			
-			//Increment over 5 pixels
-			x += 5;
-		}
-		
-		//Cut was not found to the right, go left
-		//Reset to the left of average
-		x = avgX - 5;
-		while (x >= ul.x && !foundCut) {
-			Point start = createPoint(x, ul.y);
-			Point end = createPoint(x, br.y);
-		
-			if (!testVertical(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
-			}
-			
-			//Increment over 5 pixels
-			x -= 5;
-		}
-		
-		//Cut was not found on either side
-		if (attemptFlag && !foundCut) {
-			//I already tried horizontal cuts, no way to segment
-			printf("No way to cut region. Returning full region.\n");
-			return fullReg;
-		} else if (!foundCut) {
-			//Try horizontal split
-			printf("Vertical cut not found.\n");
-			segmentRegions(fullReg, depth, PREV_H, 1);
 		}
 	} else if (status == PREV_V) {
-		//Find average
-		int avgY = ((ul.y + br.y)/2);
-		int y = avgY;
+		int cutY = findHorizontalCut(depth, ul, br);
 		
-		//Try to go up first
-		while (y >= ul.y && !foundCut) {
-			Point start = createPoint(ul.x, y);
-			Point end = createPoint(br.x, y);
+		if (cutY >= 0) {
+			n1 = createNode(createRegion(ul, createPoint(br.x, cutY)));
+			n2 = createNode(createRegion(createPoint(ul.x, cutY), br));
+		} else {
+			int cutX = findVerticalCut(depth, ul, br);
 			
-			if(!testHorizontal(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
+			if (cutX >= 0) {
+				n1 = createNode(createRegion(ul, createPoint(cutX, br.y)));
+				n2 = createNode(createRegion(createPoint(cutX, ul.y), br));
+			} else {
+				return fullReg;
 			}
-			
-			//Increment up 5 pixels (remember coord system!!!)
-			y -= 5;
-		}
-		
-		y = avgY + 5;
-		//Try to go down if cut not found up
-		while (y <= br.y && !foundCut) {
-			Point start = createPoint(ul.x, y);
-			Point end = createPoint(br.x, y);
-			
-			if (!testHorizontal(depth, start, end)) {
-				foundCut = 1;
-				reg1 = createRegion(ul, end);
-				reg2 = createRegion(start, br);
-				
-				n1 = createNode(reg1); n2 = createNode(reg2);
-			}
-			
-			//Increment
-			y += 5;
-		}
-		
-		//Cut was not found either way
-		if (attemptFlag && !foundCut) {
-			printf("No way to cut region. Returning full region.\n");
-			return fullReg;
-		} else if (!foundCut) {
-			printf("No horizontal cut possible.\n");
-			segmentRegions(fullReg, depth, PREV_V, 1);
 		}
 	}
 	
@@ -134,11 +67,11 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 	
 	//MAGIC... make the recursive calls
 	//Unless these segments are smaller than 10 pixels in any dimension
-	if ((reg1.br.x - reg1.ul.x) > 10 && (reg1.br.y - reg1.ul.y) > 10) {
-		n1 = segmentRegions(n1, depth, newStatus, 0);
+	if ((n1->reg.br.x - n1->reg.ul.x) > 10 && (n1->reg.br.y - n1->reg.ul.y) > 10) {
+		n1 = segmentRegions(n1, depth, newStatus);
 	}
-	if ((reg2.br.x - reg2.ul.x) > 10 && (reg2.br.y - reg2.ul.y) > 10) {
-		n2 = segmentRegions(n2, depth, newStatus, 0);
+	if ((n2->reg.br.x - n2->reg.ul.x) > 10 && (n2->reg.br.y - n2->reg.ul.y) > 10) {
+		n2 = segmentRegions(n2, depth, newStatus);
 	}
 	
 	//Find the tail to the first node, to link it all together
@@ -147,10 +80,71 @@ Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemp
 		tail = tail->next;
 	}
 	
-	//Link the two lists
 	tail->next = n2;
 	
 	return n1;
+}
+//Find a vertical cut position
+int findVerticalCut(uint8_t* depth, Point ul, Point br) {
+	int avg = ((ul.x + br.x)/2);
+	int x = avg;
+	int directionFlag = 1;
+	
+	//Try to cut to the right, then the left
+	while (x < br.x && x > ul.x) {
+		Point start = createPoint(x, ul.y);
+		Point end = createPoint(x, br.y);
+		
+		if (!testVertical(depth, start, end)) {
+			return x;
+		}
+		
+		if (directionFlag) {
+			x += 5;
+			if (x > br.x) {
+				//Reset to left of middle, switch direction
+				x = avg - 5;
+				directionFlag = 0;
+			}
+		} else {
+			x -= 5;
+		}
+	}
+	
+	//Haven't found cut, return negative
+	return -1;
+}
+
+//Find a horizontal cut position
+int findHorizontalCut(uint8_t* depth, Point ul, Point br) {
+	int avg = ((ul.y + br.x)/2);
+	int y = avg;
+	int directionFlag = 1;
+	
+	//Try to find cut upwards first, then down
+	//Remember my coordinate system
+	while (y < br.y && y > ul.y) {
+		Point start = createPoint(ul.x, y);
+		Point end = createPoint(br.x, y);
+		
+		if (!testHorizontal(depth, start, end)) {
+			return y;
+		}
+		
+		if (directionFlag) {
+			y -= 5;
+			if (y < ul.y) {
+				//Reset to below average, switch direction
+				y = avg + 5;
+				directionFlag = 0;
+			}
+		} else {
+			y += 5;
+		}
+	}
+	
+	//Haven't found a cut, return negative
+	return -1;
 }
 
 //Throw out all of the small nodes

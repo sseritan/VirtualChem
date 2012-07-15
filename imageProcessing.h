@@ -12,8 +12,10 @@ Function Prototypes
 **/
 
 //Image processing functions
-Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status, int attemptFlag);
+Node* segmentRegions(Node* fullReg, uint8_t* depth, segStatus status);
 Node* filterRegions(Node* head);
+int findVerticalCut(uint8_t* depth, Point ul, Point br);
+int findHorizontalCut(uint8_t* depth, Point ul, Point br);
 int testVertical(uint8_t* depth, Point start, Point end);
 int testHorizontal(uint8_t* depth, Point start, Point end);
 int testRegionSize(Node* node);
