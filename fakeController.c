@@ -39,11 +39,9 @@ int main(int argc, char** argv) {
 }
 
 //Update the depth texture, with new depth data
-void updateDepthTexture() {
+void updateDepthTexture(uint8_t* depth) {
 	//Initialize RGB array
 	uint8_t* depthRGB = (uint8_t*)malloc(640*480*3);
-	
-	uint8_t* depth = getDepthData();
 	
 	//Display the data in black and white
 	for (int i = 0; i < 640*480; i++) {
@@ -65,7 +63,6 @@ void updateDepthTexture() {
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, 640, 480, 0, GL_RGB, GL_UNSIGNED_BYTE, depthRGB);
 	
 	free(depthRGB);
-	free(depth);
 }
 
 /**
@@ -121,8 +118,11 @@ void keyPressed(unsigned char key, int x, int y) {
 
 //Take the data that I have in the array and display it, for testing purposes
 void DrawGLScene() {
-	//Get the depth texture updated
-	updateDepthTexture();
+	uint8_t* depth = getDepthData();
+	
+	updateDepthTexture(depth);
+	
+	getHandRegions(depth);
 	
 	//Display the texture
 	glBegin(GL_TRIANGLE_FAN);
@@ -134,4 +134,6 @@ void DrawGLScene() {
 	glEnd();
 	
 	glutSwapBuffers();
+	
+	free(depth);
 }
