@@ -5,6 +5,7 @@
 #define VIRCHEM_HANDTRACKING_H
 
 #include "main.h"
+#include "depthStream.h"
 
 //Hand Tracking functions
 Node* getHandRegions(uint8_t* depth);

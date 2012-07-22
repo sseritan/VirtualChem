@@ -9,9 +9,7 @@
 #include <stdint.h>
 #include "fakeController.h"
 
-//Hand tracking includes
-#include "main.h"
-#include "depthStream.h"
+//My hand tracking includes
 #include "handTracking.h"
 
 //OpenGL includes
