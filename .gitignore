@@ -10,3 +10,5 @@ testIP.o
 testIP
 
 depthStream.o
+
+fakeController.o

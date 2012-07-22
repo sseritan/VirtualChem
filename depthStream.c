@@ -11,12 +11,6 @@
 //Include threading library
 #include <pthread.h>
 
-//For testing and development purposes, the easiest way to test this is visually
-//Include OpenGL and GLUT (must run on main thread, not thread safe)
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#include <GLUT/glut.h>
-
 //Threading globals, and flags
 pthread_t kinectThread;
 pthread_mutex_t bufferSwapMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -25,16 +19,11 @@ static int gotDepth = 0;
 static int kill = 0;
 static int kinectReady = 0;
 
-//I have to have one global array to pass the data through, because libfreenect sucks
-//It doesn't actually suck, but it doesn't offer this functionality :(
+//Global array, needed to pass the data out
 uint8_t* depthData;
 
-//OpenGL globals, will not be in final product
-GLuint depthTex;
-int window;
-
-//Main function
-int main(int argc, char** argv) {
+//Initialize Kinect
+int initKinect() {
 	printf("Welcome!\n");
 	
 	//Initialize the depth data array
@@ -52,19 +41,13 @@ int main(int argc, char** argv) {
 		//but OpenGL keeps going
 	}
 	
-	if (!kill) {
-		//Initialize OpenGL on the main thread
-		initGraphics(&argc, argv);
-		
-		//Start the OpenGL loop
-		glutMainLoop();
-	}
-	
-	//Memory Management and Safe Shutdown
-	printf("Shutting down.\n");
+	return kill;
+}
+
+void stopKinect() {
+	kill = 1;
+	pthread_join(kinectThread, NULL);
 	free(depthData);
-	
-	return 0;
 }
 
 //Sets up and runs the thread that the Kinect data will be pulled in on
@@ -162,114 +145,23 @@ void depthCB(freenect_device* dev, void* tmpDepth, uint32_t timestamp) {
 	pthread_mutex_unlock(&bufferSwapMutex);
 }
 
-/**
-OpenGL Functions
-
-Only used now for visual test of the image segmentation methods.
-This entire section will be removed (most likely) later, when I am sure that this works.
-While it will be still useful to the user, I will most likely just make a function to pass a GLuint
-texture up out of this code, centralizing my graphics in the main app.
-**/
-
-//Initialize OpenGL window and start the OpenGL loop
-void initGraphics(int* argc, char** argv) {
-	//Boiler plate code
-	glutInit(argc, argv);
-	glutInitDisplayMode(GLUT_RGBA);
-	glutInitWindowSize(640,480);
-	glutInitWindowPosition(0,0);
-	
-	//Open my window
-	window = glutCreateWindow("Hand Tracking");
-	
-	//Set callbacks
-	glutDisplayFunc(&DrawGLScene);
-	glutIdleFunc(&DrawGLScene);
-	glutReshapeFunc(&ResizeGLScene);
-	glutKeyboardFunc(&keyPressed);
-	
-	//Set up my texture
-	glGenTextures(1, &depthTex);
-	glBindTexture(GL_TEXTURE_2D, depthTex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glEnable(GL_TEXTURE_2D);
-}
-
-//Deal with window resizes (really not necessary, but whatevs)
-void ResizeGLScene(int w, int h) {
-	glViewport(0, 0, w, h);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0, 640, 480, 0, -1.0f, 1.0f);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-}
-
-//Be able to exit the program without Ctrl-C :P
-void keyPressed(unsigned char key, int x, int y) {
-	if (key == 27) {
-		kill = 1;
-		pthread_join(kinectThread, NULL);
-		glutDestroyWindow(window);
-		free(depthData);
-		printf("Shutting down.\n");
-		exit(0);
-	}
-}
-
-//Take the data that I have in the array and display it, for testing purposes
-void DrawGLScene() {
-	//Initialize RGB array
-	uint8_t* depthRGB = (uint8_t*)malloc(640*480*3);
-	
-	//Lock the thread
+uint8_t* getDepthData() {
+	uint8_t* depth = (uint8_t*)malloc(640*480);
+		
 	pthread_mutex_lock(&bufferSwapMutex);
 	
-	//Wait until there is new data
-	while (!gotDepth) {
+	//Wait for new data
+	if (!gotDepth) {
 		pthread_cond_wait(&bufferCond, &bufferSwapMutex);
 	}
 	
-	//Display the data in black and white
-	if (gotDepth) {
-		for (int i = 0; i < 640*480; i++) {
-			if (depthData[i]) {
-				//Something is there, display as white
-				depthRGB[3*i+0] = 255;
-				depthRGB[3*i+1] = 255;
-				depthRGB[3*i+2] = 255;
-			} else {
-				//Nothing is there, display black
-				depthRGB[3*i+0] = 0;
-				depthRGB[3*i+1] = 0;
-				depthRGB[3*i+2] = 0;
-			}
-		}
-		
-		//Signal depth data was used
-		gotDepth = 0;
+	for (int i = 0; i < 640*480; i++) {
+		depth[i] = depthData[i];
 	}
 	
-	//Unlock the thread
+	gotDepth = 0;
+	
 	pthread_mutex_unlock(&bufferSwapMutex);
 	
-	//Bind the byte array to the texture
-	glBindTexture(GL_TEXTURE_2D, depthTex);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, 640, 480, 0, GL_RGB, GL_UNSIGNED_BYTE, depthRGB);
-	
-	
-	//Display the texture
-	glBegin(GL_TRIANGLE_FAN);
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	glTexCoord2f(0,0); glVertex3f(0,0,0);
-	glTexCoord2f(1,0); glVertex3f(640,0,0);
-	glTexCoord2f(1,1); glVertex3f(640,480,0);
-	glTexCoord2f(0,1); glVertex3f(0,480,0);
-	glEnd();
-	
-	glutSwapBuffers();
-	
-	//Memory Management
-	free(depthRGB);
+	return depth;
 }

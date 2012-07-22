@@ -7,13 +7,10 @@
 #include "libfreenect.h"
 
 //Kinect functions
+int initKinect();
+void stopKinect();
 void* kinectThreadFunc(void* arg);
 void depthCB(freenect_device* dev, void* tmpDepth, uint32_t timestamp);
-
-//OpenGL functions
-void initGraphics(int* argc, char** argv);
-void ResizeGLScene(int w, int h);
-void keyPressed(unsigned char key, int x, int y);
-void DrawGLScene();
+uint8_t* getDepthData();
 
 #endif
