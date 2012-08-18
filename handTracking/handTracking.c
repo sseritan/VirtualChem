@@ -40,3 +40,5 @@ Node* getHandRegions(uint8_t* depth) {
 	
 	return head;
 }
+
+//Toss out regions made of noise

@@ -9,5 +9,6 @@
 
 //Hand Tracking functions
 Node* getHandRegions(uint8_t* depth);
+Node* refineHandRegions(Node* crudeHands);
 
 #endif
